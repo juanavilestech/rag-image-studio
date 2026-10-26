@@ -12,8 +12,8 @@ import {
   Lightbulb,
   Search,
   CheckCircle2,
-  AlertCircle,
   BrainCircuit,
+  Filter,
 } from 'lucide-react';
 import { KnowledgeChunk } from '@/types';
 import { cosineSimilarity, generateLocalEmbedding } from '@/lib/vector';
@@ -23,6 +23,7 @@ export function KnowledgeBaseTab() {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [testQuery, setTestQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [notification, setNotification] = useState<string | null>(null);
 
   // New Chunk Form
@@ -71,10 +72,10 @@ export function KnowledgeBaseTab() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setNotification(`¡Estilo '${name}' vectorizado y añadido a la base de conocimiento!`);
+      setNotification(`¡Estilo '${name}' vectorizado y añadido a la base vectorial!`);
       setTimeout(() => setNotification(null), 3000);
 
-      // Reset form
+      // Reset
       setName('');
       setDescription('');
       setModifiers('');
@@ -90,7 +91,7 @@ export function KnowledgeBaseTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Deseas eliminar este conocimiento de la base vectorial?')) return;
+    if (!confirm('¿Deseas eliminar este estilo de la base vectorial?')) return;
     try {
       await fetch(`/api/knowledge?id=${id}`, { method: 'DELETE' });
       setChunks((prev) => prev.filter((c) => c.id !== id));
@@ -99,16 +100,18 @@ export function KnowledgeBaseTab() {
     }
   };
 
-  // Compute live test similarity if test query exists
   const testEmbedding = testQuery.trim() ? generateLocalEmbedding(testQuery.trim()) : null;
 
-  const rankedChunks = chunks.map((chunk) => {
-    let similarity = 0;
-    if (testEmbedding && chunk.embedding && chunk.embedding.length > 0) {
-      similarity = cosineSimilarity(testEmbedding, chunk.embedding);
-    }
-    return { ...chunk, liveSimilarity: similarity };
-  }).sort((a, b) => (b.liveSimilarity || 0) - (a.liveSimilarity || 0));
+  const rankedChunks = chunks
+    .map((chunk) => {
+      let similarity = 0;
+      if (testEmbedding && chunk.embedding && chunk.embedding.length > 0) {
+        similarity = cosineSimilarity(testEmbedding, chunk.embedding);
+      }
+      return { ...chunk, liveSimilarity: similarity };
+    })
+    .filter((chunk) => activeCategory === 'all' || chunk.category === activeCategory)
+    .sort((a, b) => (b.liveSimilarity || 0) - (a.liveSimilarity || 0));
 
   const getCategoryIcon = (cat: string) => {
     switch (cat) {
@@ -124,24 +127,29 @@ export function KnowledgeBaseTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Top Banner */}
-      <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-6 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-2">
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
             <Database className="h-3.5 w-3.5" />
-            Base de Conocimiento Vectorial
+            <span>Base de Conocimiento Vectorial</span>
           </div>
-          <h2 className="text-xl font-bold text-white">Directivas Estéticas y Ópticas para el RAG</h2>
-          <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
-            Cada elemento representa un fragmento de conocimiento experto (cámaras, iluminación, arte).
-            Al introducir un prompt, el RAG busca el más cercano en el espacio vectorial para enriquecer tu imagen.
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">
+            Directivas Ópticas y <span className="text-gradient">Estilos RAG</span>
+          </h2>
+          <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+            Cada fragmento almacena fórmulas técnicas de iluminación, lentes y texturas junto con su
+            vector de incrustación. Cuando el usuario envía una frase, se evalúa su distancia coseno para
+            recuperar los estilos idóneos.
           </p>
         </div>
 
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shrink-0 shadow-lg shadow-amber-500/20"
+          className="px-5 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-zinc-950 font-extrabold rounded-2xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shrink-0 shadow-xl shadow-amber-500/20"
         >
           <Plus className="h-4 w-4" />
           <span>{showAddForm ? 'Cerrar Formulario' : 'Añadir Nuevo Estilo'}</span>
@@ -149,7 +157,7 @@ export function KnowledgeBaseTab() {
       </div>
 
       {notification && (
-        <div className="p-3.5 bg-emerald-950/40 border border-emerald-800/60 rounded-xl flex items-center gap-2 text-xs text-emerald-300">
+        <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-2xl flex items-center gap-3 text-xs text-emerald-300 shadow-lg">
           <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>{notification}</span>
         </div>
@@ -157,15 +165,15 @@ export function KnowledgeBaseTab() {
 
       {/* Add New Chunk Form */}
       {showAddForm && (
-        <div className="bg-zinc-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl space-y-4">
+        <div className="glass-panel rounded-3xl p-6 sm:p-7 border border-amber-500/30 shadow-2xl space-y-5">
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-amber-400" />
-            Nuevo Fragmento de Conocimiento Vectorial
+            <span>Nuevo Fragmento de Conocimiento Vectorial</span>
           </h3>
 
           <form onSubmit={handleAddSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5">
                 Nombre del Estilo / Técnica:
               </label>
               <input
@@ -174,16 +182,16 @@ export function KnowledgeBaseTab() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ej: Pixel Art 16-Bit Retro"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+                className="w-full bg-zinc-950/90 border border-white/[0.08] focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">Categoría:</label>
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5">Categoría:</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                className="w-full bg-zinc-950/90 border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none font-semibold"
               >
                 <option value="estetica">Estética Visual</option>
                 <option value="fotografia">Fotografía & Cine</option>
@@ -196,20 +204,20 @@ export function KnowledgeBaseTab() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5">
                 Descripción conceptual:
               </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ej: Gráficos de videojuegos de la era Super Nintendo con paleta de color vibrante y sprites nostálgicos."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+                placeholder="Ej: Gráficos de videojuegos de la era 16 bits con paletas nostálgicas..."
+                className="w-full bg-zinc-950/90 border border-white/[0.08] focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5">
                 Modificadores Visuales (Prompt Tokens Técnicos):
               </label>
               <textarea
@@ -218,12 +226,12 @@ export function KnowledgeBaseTab() {
                 value={modifiers}
                 onChange={(e) => setModifiers(e.target.value)}
                 placeholder="Ej: 16-bit pixel art, snes aesthetic, sharp pixel edges, vibrant color palette, nostalgic game screenshot"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+                className="w-full bg-zinc-950/90 border border-white/[0.08] focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-zinc-300 mb-1.5">
                 Palabras Clave (separadas por coma):
               </label>
               <input
@@ -231,22 +239,22 @@ export function KnowledgeBaseTab() {
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
                 placeholder="pixel, juego, retro, snes, arcade, 16bit"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                className="w-full bg-zinc-950/90 border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
               />
             </div>
 
-            <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+            <div className="md:col-span-2 flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-xl text-xs font-medium hover:bg-zinc-700 transition"
+                className="px-4 py-2.5 bg-zinc-800 text-zinc-300 rounded-xl text-xs font-semibold hover:bg-zinc-700 transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold rounded-xl text-xs transition"
+                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-zinc-950 font-extrabold rounded-xl text-xs transition shadow-lg shadow-amber-500/20"
               >
                 {saving ? 'Vectorizando...' : 'Guardar y Vectorizar'}
               </button>
@@ -255,64 +263,100 @@ export function KnowledgeBaseTab() {
         </div>
       )}
 
-      {/* Live Similarity Simulator */}
-      <div className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300 shrink-0">
-          <BrainCircuit className="h-4 w-4 text-indigo-400" />
-          <span>Simulador Vectorial en Vivo:</span>
+      {/* Simulator & Category Filters */}
+      <div className="space-y-4">
+        {/* Live Vector Simulator Bar */}
+        <div className="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3 border border-white/[0.08]">
+          <div className="flex items-center gap-2 text-xs font-bold text-zinc-200 shrink-0">
+            <BrainCircuit className="h-4 w-4 text-indigo-400" />
+            <span>Simulador Vectorial en Tiempo Real:</span>
+          </div>
+          <div className="relative flex-1 w-full">
+            <Search className="h-3.5 w-3.5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={testQuery}
+              onChange={(e) => setTestQuery(e.target.value)}
+              placeholder="Prueba cualquier frase para ver la similitud matemática con cada directiva..."
+              className="w-full bg-zinc-950/90 border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-indigo-500 transition"
+            />
+          </div>
+          {testQuery && (
+            <button
+              onClick={() => setTestQuery('')}
+              className="text-xs text-zinc-400 hover:text-white px-3 py-1 font-semibold"
+            >
+              Reset
+            </button>
+          )}
         </div>
-        <div className="relative flex-1 w-full">
-          <Search className="h-3.5 w-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={testQuery}
-            onChange={(e) => setTestQuery(e.target.value)}
-            placeholder="Escribe cualquier frase para ver la similitud matemática con cada estilo..."
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-indigo-500 transition"
-          />
+
+        {/* Category Filter Chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'all', label: 'Todos los Estilos' },
+            { id: 'estetica', label: 'Estética Visual' },
+            { id: 'fotografia', label: 'Fotografía & Cine' },
+            { id: 'arte', label: 'Técnicas de Arte' },
+            { id: 'iluminacion', label: 'Iluminación' },
+            { id: 'fantasia', label: 'Fantasía & Sci-Fi' },
+          ].map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                activeCategory === cat.id
+                  ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
+                  : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-white/[0.06]'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
-        {testQuery && (
-          <button
-            onClick={() => setTestQuery('')}
-            className="text-xs text-zinc-400 hover:text-white px-2 py-1"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
-      {/* Knowledge Chunks Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {rankedChunks.map((chunk) => (
           <div
             key={chunk.id}
-            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-3 transition"
+            className="glass-panel rounded-3xl p-6 border border-white/[0.08] hover:border-amber-500/40 shadow-xl flex flex-col justify-between space-y-4 transition duration-300 hover:-translate-y-1"
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-white">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
                   {getCategoryIcon(chunk.category)}
                   {chunk.name}
                 </span>
 
                 {testQuery && (
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                     {((chunk.liveSimilarity || 0) * 100).toFixed(1)}% Similitud
                   </span>
                 )}
               </div>
+
+              {testQuery && (
+                <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden mb-3">
+                  <div
+                    className="bg-gradient-to-r from-amber-400 to-indigo-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(5, (chunk.liveSimilarity || 0) * 100))}%` }}
+                  ></div>
+                </div>
+              )}
 
               <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
                 {chunk.description}
               </p>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+            <div className="space-y-3 pt-3 border-t border-white/[0.06]">
               <div>
-                <span className="text-[10px] font-mono text-zinc-500 block mb-1">
-                  Modificadores Prompt:
+                <span className="text-[10px] font-mono text-zinc-500 block mb-1 font-semibold">
+                  Modificadores Técnicos:
                 </span>
-                <p className="text-[11px] text-zinc-300 font-mono bg-zinc-950 p-2 rounded-lg border border-zinc-850 line-clamp-3">
+                <p className="text-[11px] text-zinc-300 font-mono bg-zinc-950/80 p-2.5 rounded-xl border border-white/[0.06] line-clamp-3 leading-relaxed">
                   {chunk.modifiers}
                 </p>
               </div>
@@ -322,7 +366,7 @@ export function KnowledgeBaseTab() {
                   {chunk.keywords?.slice(0, 3).map((kw, idx) => (
                     <span
                       key={idx}
-                      className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded"
+                      className="text-[10px] bg-zinc-950 text-zinc-400 px-2 py-0.5 rounded-md border border-white/[0.06]"
                     >
                       #{kw}
                     </span>
@@ -331,10 +375,10 @@ export function KnowledgeBaseTab() {
 
                 <button
                   onClick={() => handleDelete(chunk.id)}
-                  className="text-zinc-500 hover:text-red-400 p-1 rounded transition"
-                  title="Eliminar estilo"
+                  className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg transition"
+                  title="Eliminar de la base vectorial"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>

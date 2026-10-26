@@ -37,7 +37,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen flex flex-col ambient-mesh text-zinc-100 selection:bg-indigo-500 selection:text-white">
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -45,7 +45,7 @@ export default function Home() {
         creationsCount={creationsCount}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {activeTab === 'generator' && (
           <GeneratorTab onGenerationComplete={handleGenerationComplete} />
         )}
@@ -57,10 +57,17 @@ export default function Home() {
         {activeTab === 'settings' && <SettingsTab />}
       </main>
 
-      <footer className="border-t border-zinc-900 bg-zinc-950 py-6 text-center text-xs text-zinc-500">
-        <p>
-          RAG Image Studio &bull; Next.js 15 &bull; Tailwind CSS &bull; Google GenAI &bull; Cosine Similarity Search
-        </p>
+      <footer className="border-t border-white/[0.06] bg-zinc-950/80 backdrop-blur-md py-8 text-center text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="font-bold text-zinc-300">RAG Image Studio</span>
+            <span>&bull;</span>
+            <span>Juan Avilés</span>
+          </div>
+          <p className="text-[11px] text-zinc-500">
+            Next.js 15 &bull; Tailwind CSS 4 &bull; Cosine Similarity Search &bull; Google GenAI &bull; Flux
+          </p>
+        </div>
       </footer>
     </div>
   );

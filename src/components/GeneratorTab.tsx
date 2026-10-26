@@ -13,6 +13,13 @@ import {
   BrainCircuit,
   Eye,
   RefreshCw,
+  Compass,
+  Maximize2,
+  Share2,
+  Layers,
+  Camera,
+  Cpu,
+  ChevronRight,
 } from 'lucide-react';
 import { RAGResponse, KnowledgeChunk } from '@/types';
 
@@ -21,25 +28,27 @@ interface GeneratorTabProps {
 }
 
 const SAMPLE_PROMPTS = [
-  'Un gato astronauta flotando entre nebulosas de colores cósmicos',
-  'Calle nocturna futurista bajo una densa lluvia con reflejos de autos',
-  'Retrato de una anciana sabia con mirada penetrante e iluminación natural',
-  'Castillo flotante en el cielo rodeado de nubes y praderas verdes',
-  'Gota de rocío matutina sobre el pétalo de una flor con reflejos de prisma',
-  'Diorama en miniatura de una acogedora cafetería de noche',
+  { text: 'Un gato astronauta flotando entre nebulosas cósmicas', tag: 'Sci-Fi' },
+  { text: 'Calle Tokio bajo lluvia nocturna con reflejos de autos y luces de neón', tag: 'Cyberpunk' },
+  { text: 'Retrato de un anciano sabio con luz natural suave y mirada penetrante', tag: 'Retrato' },
+  { text: 'Castillo flotante en el cielo rodeado de nubes y praderas verdes', tag: 'Ghibli' },
+  { text: 'Gota de rocío matutina sobre pétalo de flor con refracción de prisma', tag: 'Macro' },
+  { text: 'Diorama en miniatura con textura de arcilla de una acogedora cafetería', tag: '3D Clay' },
 ];
 
 export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState<string>('');
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RAGResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // RAG Configuration
   const [mode, setMode] = useState<'auto' | 'manual'>('auto');
   const [topK, setTopK] = useState<number>(2);
+  const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16'>('1:1');
   const [knowledgeList, setKnowledgeList] = useState<KnowledgeChunk[]>([]);
   const [selectedStyleId, setSelectedStyleId] = useState<string>('');
 
@@ -63,19 +72,11 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
 
     setError(null);
     setLoading(true);
-    setCurrentStep('1/4: Generando vector matemático (Embeddings)...');
+    setActiveStepIndex(1); // Embedding
 
-    const stepTimer1 = setTimeout(() => {
-      setCurrentStep('2/4: Recuperando conocimientos afines por similitud coseno...');
-    }, 900);
-
-    const stepTimer2 = setTimeout(() => {
-      setCurrentStep('3/4: Enriqueciendo prompt con directivas visuales (Augmentation)...');
-    }, 1800);
-
-    const stepTimer3 = setTimeout(() => {
-      setCurrentStep('4/4: Sintetizando imagen con motor de difusión...');
-    }, 2800);
+    const t1 = setTimeout(() => setActiveStepIndex(2), 800); // Retrieval
+    const t2 = setTimeout(() => setActiveStepIndex(3), 1600); // Augment
+    const t3 = setTimeout(() => setActiveStepIndex(4), 2500); // Diffusion
 
     try {
       const response = await fetch('/api/rag', {
@@ -100,11 +101,11 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
       const msg = err instanceof Error ? err.message : 'Error al conectar con el servidor.';
       setError(msg);
     } finally {
-      clearTimeout(stepTimer1);
-      clearTimeout(stepTimer2);
-      clearTimeout(stepTimer3);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
       setLoading(false);
-      setCurrentStep('');
+      setActiveStepIndex(0);
     }
   };
 
@@ -116,93 +117,157 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
 
   return (
     <div className="space-y-8">
-      {/* Top Description Banner */}
-      <div className="bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-zinc-900 border border-indigo-900/40 rounded-2xl p-6 sm:p-8">
-        <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-3">
+      {/* Top Hero Pipeline Flow Visualization */}
+      <div className="relative overflow-hidden rounded-3xl glass-panel p-6 sm:p-8 border border-white/10">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-purple-500/10 blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-4xl space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-bold uppercase tracking-wider">
             <BrainCircuit className="h-3.5 w-3.5" />
-            Flujo RAG de Dos Vías
+            <span>Pipeline RAG de Doble Sentido</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Generador de Imágenes con Enriquecimiento Vectorial
+
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Generador Visual con <span className="text-gradient">Enriquecimiento Vectorial</span>
           </h1>
-          <p className="mt-2 text-sm sm:text-base text-zinc-300 leading-relaxed">
-            Escribe una frase sencilla en español. El sistema la convierte a un vector de características,
-            busca en la base de conocimiento los estilos, lentes y paletas más acordes y sintetiza un
-            prompt maestro para generar la imagen final.
+
+          <p className="text-sm sm:text-base text-zinc-300 max-w-2xl leading-relaxed">
+            Escribe una idea en lenguaje coloquial. El sistema calcula su vector de características,
+            recupera directivas ópticas y de iluminación afines de la base de conocimiento y sintetiza un
+            prompt fotográfico maestro antes de la difusión.
           </p>
+
+          {/* Interactive Pipeline Node Diagram */}
+          <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className={`p-3 rounded-2xl border transition-all duration-300 ${
+              activeStepIndex === 1
+                ? 'bg-indigo-600/20 border-indigo-500 shadow-lg shadow-indigo-500/20'
+                : 'bg-zinc-950/60 border-white/[0.06]'
+            }`}>
+              <div className="flex items-center justify-between font-bold text-zinc-300 mb-1">
+                <span>1. Embeddings</span>
+                <span className="text-[10px] font-mono text-indigo-400">768-D</span>
+              </div>
+              <p className="text-[11px] text-zinc-400">Proyección matemática del texto a espacio vectorial.</p>
+            </div>
+
+            <div className={`p-3 rounded-2xl border transition-all duration-300 ${
+              activeStepIndex === 2
+                ? 'bg-purple-600/20 border-purple-500 shadow-lg shadow-purple-500/20'
+                : 'bg-zinc-950/60 border-white/[0.06]'
+            }`}>
+              <div className="flex items-center justify-between font-bold text-zinc-300 mb-1">
+                <span>2. Retrieval</span>
+                <span className="text-[10px] font-mono text-purple-400">Cosine</span>
+              </div>
+              <p className="text-[11px] text-zinc-400">Búsqueda de los Top-K estilos con mayor similitud.</p>
+            </div>
+
+            <div className={`p-3 rounded-2xl border transition-all duration-300 ${
+              activeStepIndex === 3
+                ? 'bg-pink-600/20 border-pink-500 shadow-lg shadow-pink-500/20'
+                : 'bg-zinc-950/60 border-white/[0.06]'
+            }`}>
+              <div className="flex items-center justify-between font-bold text-zinc-300 mb-1">
+                <span>3. Augmentation</span>
+                <span className="text-[10px] font-mono text-pink-400">LLM Master</span>
+              </div>
+              <p className="text-[11px] text-zinc-400">Fusión de la idea con cámaras, luces y composición.</p>
+            </div>
+
+            <div className={`p-3 rounded-2xl border transition-all duration-300 ${
+              activeStepIndex === 4
+                ? 'bg-emerald-600/20 border-emerald-500 shadow-lg shadow-emerald-500/20'
+                : 'bg-zinc-950/60 border-white/[0.06]'
+            }`}>
+              <div className="flex items-center justify-between font-bold text-zinc-300 mb-1">
+                <span>4. Generación</span>
+                <span className="text-[10px] font-mono text-emerald-400">Flux / Imagen</span>
+              </div>
+              <p className="text-[11px] text-zinc-400">Renderizado de imagen y guardado en galería.</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Form & Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Input Form */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Wand2 className="h-5 w-5 text-indigo-400" />
-              1. Tu Idea o Frase
-            </h2>
+          <div className="glass-panel rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-indigo-400" />
+                <span>Describe tu Imagen</span>
+              </h2>
+              <span className="text-[11px] text-zinc-400 font-medium">Español o Inglés</span>
+            </div>
 
             <form onSubmit={handleGenerate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Describe qué deseas ver (en lenguaje natural):
-                </label>
                 <textarea
                   rows={4}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Ej: Un zorro místico con pelaje brillante en un bosque de cerezos..."
-                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl p-3.5 text-white text-sm placeholder:text-zinc-600 resize-none outline-none transition"
+                  placeholder="Ej: Un zorro místico con pelaje brillante paseando bajo la lluvia de cerezos..."
+                  className="w-full bg-zinc-950/90 border border-white/[0.08] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-2xl p-4 text-white text-sm placeholder:text-zinc-600 resize-none outline-none transition duration-200 leading-relaxed shadow-inner"
                   disabled={loading}
                 />
               </div>
 
-              {/* Sample Prompts */}
+              {/* Inspiration Chips */}
               <div>
-                <span className="text-xs text-zinc-500 block mb-2 font-medium">
-                  O prueba con estos ejemplos:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {SAMPLE_PROMPTS.map((sample, idx) => (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-zinc-400 flex items-center gap-1">
+                    <Compass className="h-3.5 w-3.5 text-zinc-500" />
+                    Inspiración rápida:
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {SAMPLE_PROMPTS.map((item, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setPrompt(sample)}
+                      onClick={() => setPrompt(item.text)}
                       disabled={loading}
-                      className="text-xs bg-zinc-800/80 hover:bg-zinc-750 hover:text-white text-zinc-400 px-2.5 py-1.5 rounded-lg border border-zinc-750 transition text-left truncate max-w-full"
+                      className="text-left text-xs bg-zinc-950/70 hover:bg-zinc-800/80 border border-white/[0.06] hover:border-indigo-500/40 p-2.5 rounded-xl transition duration-150 group flex flex-col justify-between"
                     >
-                      {sample}
+                      <span className="text-zinc-300 group-hover:text-white line-clamp-1">
+                        {item.text}
+                      </span>
+                      <span className="text-[10px] text-indigo-400 font-mono font-semibold mt-1">
+                        #{item.tag}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Mode & RAG Settings */}
-              <div className="pt-2 border-t border-zinc-800/80 space-y-3">
+              {/* RAG Controls */}
+              <div className="pt-4 border-t border-white/[0.06] space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-                    <Sliders className="h-3.5 w-3.5 text-zinc-400" />
-                    Modo de Recuperación RAG:
+                  <span className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                    <Sliders className="h-3.5 w-3.5 text-indigo-400" />
+                    Modo RAG:
                   </span>
-                  <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+                  <div className="flex bg-zinc-950 p-1 rounded-xl border border-white/[0.08] text-xs">
                     <button
                       type="button"
                       onClick={() => setMode('auto')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition ${
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition ${
                         mode === 'auto'
-                          ? 'bg-indigo-600 text-white shadow'
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      Automático (Vectorial)
+                      Auto-Vectorial
                     </button>
                     <button
                       type="button"
                       onClick={() => setMode('manual')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition ${
+                      className={`px-3 py-1.5 rounded-lg font-semibold transition ${
                         mode === 'manual'
-                          ? 'bg-indigo-600 text-white shadow'
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -212,28 +277,28 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
                 </div>
 
                 {mode === 'auto' ? (
-                  <div className="flex items-center justify-between text-xs text-zinc-400 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-850">
-                    <span>Nº de estilos a recuperar (Top-K):</span>
+                  <div className="flex items-center justify-between text-xs text-zinc-400 bg-zinc-950/80 p-3 rounded-2xl border border-white/[0.06]">
+                    <span>Fusión de directivas (Top-K):</span>
                     <select
                       value={topK}
                       onChange={(e) => setTopK(Number(e.target.value))}
-                      className="bg-zinc-800 text-white border border-zinc-700 rounded-md px-2 py-1 outline-none text-xs"
+                      className="bg-zinc-900 text-white border border-white/10 rounded-xl px-2.5 py-1.5 outline-none text-xs font-semibold"
                       disabled={loading}
                     >
-                      <option value={1}>Top 1 (Más afín)</option>
-                      <option value={2}>Top 2 (Fusión de estilos)</option>
-                      <option value={3}>Top 3 (Enriquecimiento profundo)</option>
+                      <option value={1}>1 Estilo Principal</option>
+                      <option value={2}>2 Estilos (Híbrido óptico)</option>
+                      <option value={3}>3 Estilos (Profundo)</option>
                     </select>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-zinc-400 block">
-                      Selecciona el estilo de la base de conocimiento:
+                  <div className="space-y-1.5 bg-zinc-950/80 p-3 rounded-2xl border border-white/[0.06]">
+                    <label className="text-xs text-zinc-300 block font-medium">
+                      Estilo específico de la base de conocimiento:
                     </label>
                     <select
                       value={selectedStyleId}
                       onChange={(e) => setSelectedStyleId(e.target.value)}
-                      className="w-full bg-zinc-950 text-white border border-zinc-800 rounded-xl px-3 py-2 text-xs outline-none"
+                      className="w-full bg-zinc-900 text-white border border-white/10 rounded-xl px-3 py-2 text-xs outline-none font-semibold"
                       disabled={loading}
                     >
                       {knowledgeList.map((k) => (
@@ -246,105 +311,110 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
                 )}
               </div>
 
-              {/* Submit Button */}
+              {/* Submit CTA */}
               <button
                 type="submit"
                 disabled={loading || !prompt.trim()}
-                className="w-full mt-3 py-3.5 px-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition duration-200"
+                className="w-full mt-2 py-4 px-5 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 hover:from-indigo-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition duration-200 group text-sm"
               >
                 {loading ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin text-white" />
-                    <span>Procesando RAG...</span>
+                    <span>Ejecutando RAG Pipeline...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4" />
-                    <span>Generar con RAG</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <Sparkles className="h-4 w-4 group-hover:rotate-12 transition duration-200" />
+                    <span>Generar Imagen con RAG</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition duration-200" />
                   </>
                 )}
               </button>
             </form>
 
-            {/* Error Message */}
             {error && (
-              <div className="p-3.5 bg-red-950/40 border border-red-800/60 rounded-xl flex items-start gap-2.5 text-xs text-red-300">
+              <div className="p-4 bg-red-950/40 border border-red-800/60 rounded-2xl flex items-start gap-3 text-xs text-red-200">
                 <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                 <span>{error}</span>
-              </div>
-            )}
-
-            {/* Loading Indicator */}
-            {loading && (
-              <div className="p-4 bg-zinc-950 border border-indigo-900/40 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-indigo-400">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-indigo-400 animate-ping"></span>
-                    Pipeline RAG en Ejecución
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-300 font-mono">{currentStep}</p>
-                <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-indigo-500 to-pink-500 h-full w-2/3 animate-pulse"></div>
-                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column: Visual Result & RAG Inspection */}
+        {/* Right Column: Visual Result & Real-Time RAG Inspector */}
         <div className="lg:col-span-7 space-y-6">
           {result ? (
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/10">
               {/* Image Preview Container */}
               <div className="relative aspect-square sm:aspect-[4/3] bg-zinc-950 flex items-center justify-center overflow-hidden group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={result.imageUrl}
                   alt={result.originalPrompt}
-                  className="w-full h-full object-cover transition duration-300"
+                  className="w-full h-full object-cover transition duration-500 group-hover:scale-[1.02]"
                 />
 
-                {/* Overlay actions */}
-                <div className="absolute top-3 right-3 flex items-center gap-2">
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 uppercase tracking-wider">
+                {/* Floating overlay actions */}
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md text-white border border-white/10 uppercase tracking-wider shadow-lg">
                     {result.engine}
                   </span>
+                  <button
+                    onClick={() => setLightboxOpen(true)}
+                    className="p-2.5 rounded-xl bg-black/70 hover:bg-black/90 backdrop-blur-md text-white border border-white/10 transition shadow-lg"
+                    title="Ampliar imagen"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </button>
                   <a
                     href={result.imageUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2 rounded-lg bg-black/60 hover:bg-black/90 backdrop-blur-md text-white border border-white/10 transition"
-                    title="Abrir en tamaño completo"
+                    download
+                    className="p-2.5 rounded-xl bg-black/70 hover:bg-black/90 backdrop-blur-md text-white border border-white/10 transition shadow-lg"
+                    title="Descargar imagen"
                   >
                     <Download className="h-4 w-4" />
                   </a>
                 </div>
               </div>
 
-              {/* RAG Inspector Breakdown */}
-              <div className="p-6 space-y-5">
+              {/* RAG Inspector Panel */}
+              <div className="p-6 sm:p-7 space-y-6">
+                {/* Retrieved styles */}
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5 mb-2">
-                    <BrainCircuit className="h-3.5 w-3.5" />
-                    2. Conocimiento RAG Recuperado (Retrieval)
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <BrainCircuit className="h-4 w-4" />
+                      Directivas RAG Recuperadas por Similitud Coseno
+                    </h3>
+                    <span className="text-[10px] text-zinc-500 font-mono">Top Matches</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {result.retrievedStyles.map((style, idx) => (
                       <div
                         key={idx}
-                        className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1.5"
+                        className="bg-zinc-950/80 border border-white/[0.08] rounded-2xl p-4 space-y-2 relative overflow-hidden"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-white truncate">
+                          <span className="text-xs font-bold text-white">
                             {style.name}
                           </span>
-                          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                          <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                             {(style.similarity * 100).toFixed(1)}% Similitud
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 line-clamp-2 italic">
+
+                        {/* Progress Bar of Similarity */}
+                        <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full"
+                            style={{ width: `${Math.min(100, Math.max(10, style.similarity * 100))}%` }}
+                          ></div>
+                        </div>
+
+                        <p className="text-[11px] text-zinc-400 line-clamp-2 italic leading-relaxed">
                           {style.modifiers}
                         </p>
                       </div>
@@ -354,33 +424,38 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
 
                 {/* Explanation */}
                 {result.explanation && (
-                  <div className="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3 text-xs text-indigo-300">
-                    <strong className="text-indigo-200">Explicación del Enriquecimiento: </strong>
-                    {result.explanation}
+                  <div className="bg-indigo-950/30 border border-indigo-500/25 rounded-2xl p-4 text-xs text-indigo-200 leading-relaxed flex items-start gap-2.5">
+                    <Sparkles className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-indigo-300 font-semibold block mb-0.5">
+                        Síntesis de Augmentation:
+                      </strong>
+                      {result.explanation}
+                    </div>
                   </div>
                 )}
 
-                {/* Comparison Original vs Augmented */}
-                <div className="space-y-3 pt-3 border-t border-zinc-800 text-xs">
+                {/* Comparison Original vs Enriched Prompt */}
+                <div className="space-y-4 pt-4 border-t border-white/[0.06] text-xs">
                   <div>
                     <span className="text-zinc-500 font-medium block mb-1">
-                      Texto Original (Usuario):
+                      1. Prompt del Usuario:
                     </span>
-                    <p className="text-zinc-300 bg-zinc-950 p-2.5 rounded-lg border border-zinc-850">
+                    <p className="text-zinc-300 bg-zinc-950/80 p-3 rounded-xl border border-white/[0.06]">
                       &quot;{result.originalPrompt}&quot;
                     </p>
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-indigo-400 font-semibold flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        Prompt Maestro Enriquecido (RAG Augmentation):
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-indigo-400 font-bold flex items-center gap-1.5">
+                        <Wand2 className="h-3.5 w-3.5" />
+                        2. Master Prompt Enriquecido por IA (Para el modelo de difusión):
                       </span>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(result.augmentedPrompt)}
-                        className="text-zinc-400 hover:text-white flex items-center gap-1 transition"
+                        className="text-zinc-400 hover:text-white flex items-center gap-1 text-[11px] font-medium transition"
                       >
                         {copied ? (
                           <>
@@ -395,30 +470,57 @@ export function GeneratorTab({ onGenerationComplete }: GeneratorTabProps) {
                         )}
                       </button>
                     </div>
-                    <p className="text-zinc-200 bg-zinc-950 p-3 rounded-lg border border-indigo-900/40 font-mono text-[11px] leading-relaxed select-all">
+
+                    <div className="text-zinc-200 bg-zinc-950/90 p-4 rounded-xl border border-indigo-500/30 font-mono text-[11px] leading-relaxed select-all">
                       {result.augmentedPrompt}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* Empty State Placeholder */
-            <div className="h-full min-h-[460px] border-2 border-dashed border-zinc-800 rounded-2xl flex flex-col items-center justify-center p-8 text-center bg-zinc-900/20">
-              <div className="h-16 w-16 rounded-2xl bg-zinc-800/60 flex items-center justify-center text-zinc-500 mb-4">
-                <Eye className="h-8 w-8 text-zinc-600" />
+            /* Empty State */
+            <div className="h-full min-h-[480px] border-2 border-dashed border-white/[0.08] rounded-3xl flex flex-col items-center justify-center p-8 text-center bg-zinc-900/15 backdrop-blur-sm">
+              <div className="h-20 w-20 rounded-3xl bg-zinc-900/80 border border-white/[0.08] flex items-center justify-center text-zinc-500 mb-4 shadow-xl shadow-black/40">
+                <Eye className="h-9 w-9 text-indigo-400/60" />
               </div>
-              <h3 className="text-base font-semibold text-zinc-300">
-                Tu resultado se mostrará aquí
+              <h3 className="text-lg font-bold text-white">
+                El resultado del RAG aparecerá aquí
               </h3>
-              <p className="text-xs text-zinc-500 max-w-sm mt-1">
-                Escribe una idea en el panel izquierdo y haz clic en &quot;Generar con RAG&quot; para
-                observar el cálculo de similitud vectorial y la imagen resultante.
+              <p className="text-xs text-zinc-400 max-w-md mt-2 leading-relaxed">
+                Ingresa una frase en el panel izquierdo y presiona &quot;Generar Imagen con RAG&quot;
+                para observar en tiempo real la recuperación de conocimientos y la creación visual.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {lightboxOpen && result && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden bg-zinc-950 border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={result.imageUrl}
+              alt={result.originalPrompt}
+              className="w-full h-full object-contain max-h-[85vh]"
+            />
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 h-9 w-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center text-sm font-bold border border-white/10"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
